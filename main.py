@@ -1,5 +1,4 @@
 import discord
-from database import *
 from discord.ext import commands
 from discord import app_commands
 from dotenv import load_dotenv
@@ -7,6 +6,7 @@ import os
 import json
 import random
 import string
+from database import *
 
 load_dotenv()
 

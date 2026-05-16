@@ -170,6 +170,8 @@ class Panel(discord.ui.View):
 @bot.event
 async def on_ready():
 
+    setup()
+
     guild=discord.Object(
         id=GUILD_ID
     )

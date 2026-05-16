@@ -1,5 +1,6 @@
 venv/
 .env
+data/keys.json
+data/users.json
 __pycache__/
 *.pyc
-Data/*.backup

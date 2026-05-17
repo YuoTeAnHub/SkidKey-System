@@ -1,7 +1,8 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 from discord import app_commands
 from dotenv import load_dotenv
+from datetime import datetime, timedelta
 
 import psycopg2
 import random
@@ -58,7 +59,9 @@ def connect_database():
     used BOOLEAN,
     discord_id TEXT,
     hwid TEXT,
-    validation TEXT
+    validation TEXT,
+    created_at TIMESTAMP,
+    expires_at TIMESTAMP
 
     )
 
@@ -77,6 +80,82 @@ def generate_random(length):
         random.choice(chars)
         for i in range(length)
     )
+
+
+@tasks.loop(seconds=30)
+async def expire_keys():
+
+    if cursor is None:
+        return
+
+    cursor.execute(
+    """
+
+    SELECT
+    key,
+    discord_id
+
+    FROM keys
+
+    WHERE
+    expires_at IS NOT NULL
+    AND expires_at<=NOW()
+    AND used=TRUE
+
+    """
+
+    )
+
+    rows=cursor.fetchall()
+
+    for row in rows:
+
+        key=row[0]
+        user_id=row[1]
+
+        try:
+
+            user=await bot.fetch_user(
+            int(user_id)
+            )
+
+            await user.send(
+            f"❌ Ваш ключ закончился:\n{key}"
+            )
+
+        except:
+            pass
+
+
+        cursor.execute(
+        """
+
+        UPDATE keys
+
+        SET
+
+        used=%s,
+        discord_id=%s,
+        hwid=%s,
+        expires_at=%s
+
+        WHERE key=%s
+
+        """,
+
+        (
+
+        False,
+        None,
+        None,
+        None,
+        key
+
+        )
+
+        )
+
+    conn.commit()
 
 
 class Panel(discord.ui.View):
@@ -191,13 +270,13 @@ class KeyModal(
 
         cursor.execute(
         """
-        SELECT used
+        SELECT used,expires_at
         FROM keys
         WHERE key=%s
         """,
 
         (
-            str(self.key),
+            self.key.value,
         )
         )
 
@@ -213,6 +292,18 @@ class KeyModal(
 
             return
 
+        expire=data[1]
+
+        if expire:
+
+            if datetime.now()>expire:
+
+                await interaction.response.send_message(
+                "❌ Key Expired",
+                ephemeral=True
+                )
+
+                return
 
         if data[0]:
 
@@ -250,7 +341,7 @@ class KeyModal(
         True,
         str(interaction.user.id),
         hwid,
-        str(self.key)
+        self.key.value
 
         )
 
@@ -270,6 +361,10 @@ class KeyModal(
 async def on_ready():
 
     connect_database()
+
+    if not expire_keys.is_running():
+
+        expire_keys.start()
 
     guild=discord.Object(
         id=GUILD_ID
@@ -357,6 +452,9 @@ length:int=24
 
     validate=validate.lower()
 
+    created=datetime.now()
+
+    expires=None
 
     if validate!="lifetime":
 
@@ -374,6 +472,21 @@ length:int=24
                 )
 
                 return
+
+            if unit=="seconds":
+                expires=created+timedelta(seconds=amount)
+
+            elif unit=="hours":
+                expires=created+timedelta(hours=amount)
+
+            elif unit=="days":
+                expires=created+timedelta(days=amount)
+
+            elif unit=="months":
+                expires=created+timedelta(days=amount*30)
+
+            elif unit=="years":
+                expires=created+timedelta(days=amount*365)
 
 
         except:
@@ -403,8 +516,17 @@ length:int=24
         cursor.execute(
         """
         INSERT INTO keys
-        (key,used,discord_id,hwid,validation)
-        VALUES(%s,%s,%s,%s,%s)
+        (
+        key,
+        used,
+        discord_id,
+        hwid,
+        validation,
+        created_at,
+        expires_at
+        )
+
+        VALUES(%s,%s,%s,%s,%s,%s,%s)
         """,
 
         (
@@ -413,7 +535,9 @@ length:int=24
         False,
         None,
         None,
-        validate
+        validate,
+        created,
+        expires
 
         )
         )

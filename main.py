@@ -510,41 +510,18 @@ length:int=24
         key=f"{prefix}-{key}"
 
 
+    cursor.execute(
+    """
+    SELECT key
+    FROM keys
+    WHERE key=%s
+    """,
+    (key,)
+    )
 
-    try:
+    exists=cursor.fetchone()
 
-        cursor.execute(
-        """
-        INSERT INTO keys
-        (
-        key,
-        used,
-        discord_id,
-        hwid,
-        validation,
-        created_at,
-        expires_at
-        )
-
-        VALUES(%s,%s,%s,%s,%s,%s,%s)
-        """,
-
-        (
-
-        key,
-        False,
-        None,
-        None,
-        validate,
-        created,
-        expires
-
-        )
-        )
-
-        conn.commit()
-
-    except:
+    if exists:
 
         await interaction.response.send_message(
         "❌ key exists",
@@ -552,6 +529,38 @@ length:int=24
         )
 
         return
+
+
+    cursor.execute(
+    """
+    INSERT INTO keys
+    (
+    key,
+    used,
+    discord_id,
+    hwid,
+    validation,
+    created_at,
+    expires_at
+    )
+
+    VALUES(%s,%s,%s,%s,%s,%s,%s)
+    """,
+
+    (
+
+    key,
+    False,
+    None,
+    None,
+    validate,
+    created,
+    expires
+
+    )
+    )
+
+    conn.commit()
 
 
     await interaction.response.send_message(

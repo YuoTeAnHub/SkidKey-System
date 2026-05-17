@@ -69,6 +69,28 @@ def connect_database():
 
     conn.commit()
 
+    for col, coltype in [("created_at", "TIMESTAMP"), ("expires_at", "TIMESTAMP")]:
+
+        cursor.execute(
+        """
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name='keys'
+        AND column_name=%s
+        """,
+        (col,)
+        )
+
+        if not cursor.fetchone():
+
+            cursor.execute(
+            f"ALTER TABLE keys ADD COLUMN {col} {coltype}"
+            )
+
+            print(f"Added column: {col}")
+
+    conn.commit()
+
     print("DATABASE CONNECTED")
 
 
@@ -88,74 +110,82 @@ async def expire_keys():
     if cursor is None:
         return
 
-    cursor.execute(
-    """
-
-    SELECT
-    key,
-    discord_id
-
-    FROM keys
-
-    WHERE
-    expires_at IS NOT NULL
-    AND expires_at<=NOW()
-    AND used=TRUE
-
-    """
-
-    )
-
-    rows=cursor.fetchall()
-
-    for row in rows:
-
-        key=row[0]
-        user_id=row[1]
-
-        try:
-
-            user=await bot.fetch_user(
-            int(user_id)
-            )
-
-            await user.send(
-            f"❌ Ваш ключ закончился:\n{key}"
-            )
-
-        except:
-            pass
-
+    try:
 
         cursor.execute(
         """
 
-        UPDATE keys
+        SELECT
+        key,
+        discord_id
 
-        SET
+        FROM keys
 
-        used=%s,
-        discord_id=%s,
-        hwid=%s,
-        expires_at=%s
+        WHERE
+        expires_at IS NOT NULL
+        AND expires_at<=NOW()
+        AND used=TRUE
 
-        WHERE key=%s
-
-        """,
-
-        (
-
-        False,
-        None,
-        None,
-        None,
-        key
+        """
 
         )
 
-        )
+        rows=cursor.fetchall()
 
-    conn.commit()
+        for row in rows:
+
+            key=row[0]
+            user_id=row[1]
+
+            try:
+
+                user=await bot.fetch_user(
+                int(user_id)
+                )
+
+                await user.send(
+                f"❌ Ваш ключ закончился:\n{key}"
+                )
+
+            except:
+                pass
+
+
+            cursor.execute(
+            """
+
+            UPDATE keys
+
+            SET
+
+            used=%s,
+            discord_id=%s,
+            hwid=%s,
+            expires_at=%s
+
+            WHERE key=%s
+
+            """,
+
+            (
+
+            False,
+            None,
+            None,
+            None,
+            key
+
+            )
+
+            )
+
+        conn.commit()
+
+    except Exception as e:
+
+        conn.rollback()
+
+        print(f"expire_keys error: {e}")
 
 
 class Panel(discord.ui.View):

@@ -114,9 +114,156 @@ class Panel(discord.ui.View):
             )
         )
 
+        b1.callback=self.enter_key
+        b2.callback=self.get_script
+        b3.callback=self.reset_hwid
+
         self.add_item(b1)
         self.add_item(b2)
         self.add_item(b3)
+
+
+    async def enter_key(
+        self,
+        interaction
+    ):
+
+        await interaction.response.send_modal(
+            KeyModal()
+        )
+
+
+    async def get_script(
+        self,
+        interaction
+    ):
+
+        await interaction.response.send_message(
+            "Script soon",
+            ephemeral=True
+        )
+
+
+    async def reset_hwid(
+        self,
+        interaction
+    ):
+
+        cursor.execute(
+        """
+        UPDATE keys
+        SET hwid=NULL
+        WHERE discord_id=%s
+        """,
+
+        (
+            str(
+                interaction.user.id
+            ),
+        )
+        )
+
+        conn.commit()
+
+        await interaction.response.send_message(
+            "✅ HWID Reset",
+            ephemeral=True
+        )
+
+
+class KeyModal(
+    discord.ui.Modal,
+    title="Enter Key"
+):
+
+
+    key=discord.ui.TextInput(
+        label="Your Key",
+        placeholder="Skid-XXXXX"
+    )
+
+
+    async def on_submit(
+        self,
+        interaction:discord.Interaction
+    ):
+
+
+        cursor.execute(
+        """
+        SELECT used
+        FROM keys
+        WHERE key=%s
+        """,
+
+        (
+            str(self.key),
+        )
+        )
+
+        data=cursor.fetchone()
+
+
+        if not data:
+
+            await interaction.response.send_message(
+            "❌ Invalid key",
+            ephemeral=True
+            )
+
+            return
+
+
+        if data[0]:
+
+            await interaction.response.send_message(
+            "❌ Key already used",
+            ephemeral=True
+            )
+
+            return
+
+
+        hwid=str(
+            interaction.user.id
+        )+"-"+str(
+            interaction.guild.id
+        )
+
+
+        cursor.execute(
+        """
+
+        UPDATE keys
+
+        SET
+        used=%s,
+        discord_id=%s,
+        hwid=%s
+
+        WHERE key=%s
+
+        """,
+
+        (
+
+        True,
+        str(interaction.user.id),
+        hwid,
+        str(self.key)
+
+        )
+
+        )
+
+
+        conn.commit()
+
+
+        await interaction.response.send_message(
+        "✅ Key activated",
+        ephemeral=True
+        )
 
 
 @bot.event

@@ -887,5 +887,88 @@ user:discord.Member
     embed=embed
     )
 
+from flask import Flask, request, jsonify
+from threading import Thread
+import os
+
+app = Flask(__name__)
+
+@app.route("/")
+def home():
+    return jsonify({
+        "status":"online",
+        "name":"Skid API"
+    })
+
+@app.route("/check")
+def check():
+
+    global cursor
+
+    if cursor is None:
+        return jsonify({
+            "valid":False
+        })
+
+    key=request.args.get("key")
+
+    if not key:
+        return jsonify({
+            "valid":False
+        })
+
+    cursor.execute(
+    """
+    SELECT
+    used,
+    expired
+    FROM keys
+    WHERE key=%s
+    """,
+    (key,)
+    )
+
+    data=cursor.fetchone()
+
+    if not data:
+        return jsonify({
+            "valid":False
+        })
+
+    used=data[0]
+    expired=data[1]
+
+    if expired=="Yes":
+        return jsonify({
+            "valid":False
+        })
+
+    if used:
+        return jsonify({
+            "valid":True
+        })
+
+    return jsonify({
+        "valid":False
+    })
+
+
+def run_api():
+
+    app.run(
+        host="0.0.0.0",
+        port=int(
+            os.environ.get(
+                "PORT",
+                8080
+            )
+        )
+    )
+
+
+Thread(
+    target=run_api,
+    daemon=True
+).start()
 
 bot.run(TOKEN)

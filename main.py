@@ -277,7 +277,7 @@ class Panel(discord.ui.View):
 
         script=(
             f'G.status="{user_key}"\n\n'
-            f'loadstring(game:HttpGet("https://raw.githubusercontent.com/YuoTeAnHub/SkidKey-System/main/Loader.lua"))()' 
+            f'loadstring(game:HttpGet("https://raw.githubusercontent.com/YuoTeAnHub/SkidScriptLoader/refs/heads/main/Loader.lua"))()' 
         )
 
         await interaction.response.send_message(

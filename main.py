@@ -904,53 +904,62 @@ def home():
 @app.route("/check")
 def check():
 
-    global cursor
+    global cursor,conn
 
     if cursor is None:
-        return jsonify({
-            "valid":False
-        })
+        return jsonify({"valid":False})
 
     key=request.args.get("key")
+    userid=request.args.get("userid")
 
     if not key:
-        return jsonify({
-            "valid":False
-        })
+        return jsonify({"valid":False})
 
-    cursor.execute(
-    """
+    cursor.execute("""
     SELECT
     used,
-    expired
+    expired,
+    roblox_id
     FROM keys
     WHERE key=%s
-    """,
-    (key,)
-    )
+    """,(key,))
 
     data=cursor.fetchone()
 
     if not data:
-        return jsonify({
-            "valid":False
-        })
+        return jsonify({"valid":False})
 
     used=data[0]
     expired=data[1]
+    roblox_id=data[2]
 
     if expired=="Yes":
-        return jsonify({
-            "valid":False
-        })
+        return jsonify({"valid":False})
 
-    if used:
-        return jsonify({
-            "valid":True
-        })
+    if not used:
+        return jsonify({"valid":False})
+
+    if userid:
+
+        if roblox_id is None:
+
+            cursor.execute("""
+            UPDATE keys
+            SET roblox_id=%s
+            WHERE key=%s
+            """,(userid,key))
+
+            conn.commit()
+
+        elif str(roblox_id)!=str(userid):
+
+            return jsonify({
+                "valid":False,
+                "reason":"wrong account"
+            })
 
     return jsonify({
-        "valid":False
+        "valid":True
     })
 
 

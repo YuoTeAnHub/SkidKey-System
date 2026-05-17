@@ -61,7 +61,8 @@ def connect_database():
     hwid TEXT,
     validation TEXT,
     created_at TIMESTAMP,
-    expires_at TIMESTAMP
+    expires_at TIMESTAMP,
+    expired TEXT
 
     )
 
@@ -69,7 +70,7 @@ def connect_database():
 
     conn.commit()
 
-    for col, coltype in [("created_at", "TIMESTAMP"), ("expires_at", "TIMESTAMP")]:
+    for col, coltype in [("created_at", "TIMESTAMP"), ("expires_at", "TIMESTAMP"), ("expired", "TEXT")]:
 
         cursor.execute(
         """
@@ -161,7 +162,8 @@ async def expire_keys():
             used=%s,
             discord_id=%s,
             hwid=%s,
-            expires_at=%s
+            expires_at=%s,
+            expired=%s
 
             WHERE key=%s
 
@@ -173,6 +175,7 @@ async def expire_keys():
             None,
             None,
             None,
+            "Yes",
             key
 
             )
@@ -706,7 +709,8 @@ key:str
     SELECT used,
     discord_id,
     hwid,
-    validation
+    validation,
+    expired
 
     FROM keys
 
@@ -758,6 +762,12 @@ key:str
     embed.add_field(
     name="Validation",
     value=data[3],
+    inline=False
+    )
+
+    embed.add_field(
+    name="Expired",
+    value=data[4] or "NULL",
     inline=False
     )
 

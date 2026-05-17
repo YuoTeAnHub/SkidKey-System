@@ -250,9 +250,39 @@ class Panel(discord.ui.View):
         interaction
     ):
 
-        await interaction.response.send_message(
-            "Script soon",
+        cursor.execute(
+        """
+        SELECT key
+        FROM keys
+        WHERE
+        discord_id=%s
+        AND used=TRUE
+        AND expired IS NULL
+        """,
+        (str(interaction.user.id),)
+        )
+
+        data=cursor.fetchone()
+
+        if not data:
+
+            await interaction.response.send_message(
+            "❌ Reedem Key To Get Script !",
             ephemeral=True
+            )
+
+            return
+
+        user_key=data[0]
+
+        script=(
+            f'G.status="{user_key}"\n\n'
+            f'loadstring(game:HttpGet("https://raw.githubusercontent.com/YuoTeAnHub/SkidKey-System/main/Loader.lua"))()' 
+        )
+
+        await interaction.response.send_message(
+        f"```lua\n{script}\n```",
+        ephemeral=True
         )
 
 

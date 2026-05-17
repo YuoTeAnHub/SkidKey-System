@@ -2,96 +2,89 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from dotenv import load_dotenv
+
 import os
 import json
 import random
 import string
-from database import *
+import psycopg2
 
 load_dotenv()
 
-TOKEN=os.getenv("DISCORD_TOKEN")
-GUILD_ID=1497847450919239831
+TOKEN = os.getenv("DISCORD_TOKEN")
+GUILD_ID = 1497847450919239831
 
-intents=discord.Intents.default()
-intents.message_content=True
+intents = discord.Intents.default()
+intents.message_content = True
 
-bot=commands.Bot(
+bot = commands.Bot(
     command_prefix="!",
     intents=intents
 )
 
-colors={
-    "blue":discord.ButtonStyle.primary,
-    "green":discord.ButtonStyle.success,
-    "red":discord.ButtonStyle.danger,
-    "gray":discord.ButtonStyle.secondary
+conn = None
+cursor = None
+
+colors = {
+    "blue": discord.ButtonStyle.primary,
+    "green": discord.ButtonStyle.success,
+    "red": discord.ButtonStyle.danger,
+    "gray": discord.ButtonStyle.secondary
 }
 
 
-def load_keys():
+def connect_database():
+    global conn
+    global cursor
 
     try:
 
-        with open(
-            "data/keys.json",
-            "r",
-            encoding="utf8"
-        ) as f:
+        db_url = os.getenv("DATABASE_URL")
 
-            return json.load(f)
+        if not db_url:
+            print("DATABASE_URL NOT FOUND")
+            return False
 
-    except:
-
-        return {
-            "keys":[]
-        }
-
-
-def save_keys(data):
-
-    with open(
-        "data/keys.json",
-        "w",
-        encoding="utf8"
-    ) as f:
-
-        json.dump(
-            data,
-            f,
-            indent=4
+        conn = psycopg2.connect(
+            db_url
         )
 
+        cursor = conn.cursor()
 
-def load_users():
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS keys(
+            id SERIAL PRIMARY KEY,
+            key TEXT UNIQUE,
+            used BOOLEAN,
+            discord_id TEXT,
+            hwid TEXT,
+            validation TEXT
+        )
+        """)
 
-    try:
+        conn.commit()
 
-        with open(
-            "data/users.json",
-            "r",
-            encoding="utf8"
-        ) as f:
+        print("DATABASE CONNECTED")
+        print("KEY TABLE CREATED")
 
-            return json.load(f)
+        return True
 
-    except:
+    except Exception as e:
 
-        return {
-            "users":[]
-        }
+        print("DATABASE ERROR:")
+        print(e)
+
+        return False
 
 
 def generate_random(length):
 
-    chars=string.ascii_uppercase+string.digits
+    chars = string.ascii_uppercase + string.digits
 
-    result=''.join(
+    return ''.join(
         random.choice(chars)
         for i in range(length)
     )
-
-    return result
 
 
 class Panel(discord.ui.View):
@@ -105,7 +98,7 @@ class Panel(discord.ui.View):
 
         super().__init__(timeout=None)
 
-        b1=discord.ui.Button(
+        b1 = discord.ui.Button(
             label="Enter Key",
             style=colors.get(
                 enter_color.lower(),
@@ -113,7 +106,7 @@ class Panel(discord.ui.View):
             )
         )
 
-        b2=discord.ui.Button(
+        b2 = discord.ui.Button(
             label="Get Script",
             style=colors.get(
                 get_color.lower(),
@@ -121,7 +114,7 @@ class Panel(discord.ui.View):
             )
         )
 
-        b3=discord.ui.Button(
+        b3 = discord.ui.Button(
             label="Reset HWID",
             style=colors.get(
                 reset_color.lower(),
@@ -129,9 +122,9 @@ class Panel(discord.ui.View):
             )
         )
 
-        b1.callback=self.enter_click
-        b2.callback=self.script_click
-        b3.callback=self.reset_click
+        b1.callback = self.enter_click
+        b2.callback = self.script_click
+        b3.callback = self.reset_click
 
         self.add_item(b1)
         self.add_item(b2)
@@ -171,20 +164,17 @@ class Panel(discord.ui.View):
 @bot.event
 async def on_ready():
 
-    setup()
+    connect_database()
 
-    guild=discord.Object(
+    guild = discord.Object(
         id=GUILD_ID
     )
 
-    synced=await bot.tree.sync(
+    synced = await bot.tree.sync(
         guild=guild
     )
 
-    print(
-        f"Synced {len(synced)} commands"
-    )
-
+    print(f"Synced {len(synced)} commands")
     print(bot.user)
     print("READY")
 
@@ -195,16 +185,16 @@ async def on_ready():
     )
 )
 async def sendpanel(
-    interaction:discord.Interaction,
-    title:str,
-    description:str,
-    field:str,
-    enter_color:str,
-    get_color:str,
-    reset_color:str
+    interaction: discord.Interaction,
+    title: str,
+    description: str,
+    field: str,
+    enter_color: str,
+    get_color: str,
+    reset_color: str
 ):
 
-    embed=discord.Embed(
+    embed = discord.Embed(
         title=title,
         description=description
     )
@@ -234,39 +224,44 @@ async def sendpanel(
     )
 )
 async def generatekey(
-    interaction:discord.Interaction,
-    validate:str,
-    key:str=None,
-    prefix:str=None,
-    length:int=24
+    interaction: discord.Interaction,
+    validate: str,
+    key: str = None,
+    prefix: str = None,
+    length: int = 24
 ):
 
-    db=load_keys()
+    global cursor
+    global conn
 
     if key is None:
 
-        key=generate_random(
+        key = generate_random(
             length
         )
 
     if prefix:
 
-        key=f"{prefix}-{key}"
+        key = f"{prefix}-{key}"
 
-    db["keys"].append({
-
-        "key":key,
-        "used":False,
-        "discord_id":None,
-        "hwid":None,
-        "validation":validate
-    })
-
-    save_keys(
-        db
+    cursor.execute(
+        """
+        INSERT INTO keys
+        (key,used,discord_id,hwid,validation)
+        VALUES(%s,%s,%s,%s,%s)
+        """,
+        (
+            key,
+            False,
+            None,
+            None,
+            validate
+        )
     )
 
-    embed=discord.Embed(
+    conn.commit()
+
+    embed = discord.Embed(
         title="Key Generated",
         color=discord.Color.green()
     )
@@ -294,25 +289,24 @@ async def generatekey(
     )
 )
 async def userinfo(
-    interaction:discord.Interaction,
-    user:discord.Member
+    interaction: discord.Interaction,
+    user: discord.Member
 ):
 
-    db=load_keys()
+    cursor.execute(
+        """
+        SELECT key,validation
+        FROM keys
+        WHERE discord_id=%s
+        """,
+        (
+            str(user.id),
+        )
+    )
 
-    found=None
+    data = cursor.fetchone()
 
-    for x in db["keys"]:
-
-        if str(
-            x["discord_id"]
-        )==str(
-            user.id
-        ):
-
-            found=x
-
-    embed=discord.Embed(
+    embed = discord.Embed(
         title="User Info"
     )
 
@@ -322,17 +316,17 @@ async def userinfo(
         inline=False
     )
 
-    if found:
+    if data:
 
         embed.add_field(
             name="User Key",
-            value=found["key"],
+            value=data[0],
             inline=False
         )
 
         embed.add_field(
             name="Key Validation",
-            value=found["validation"],
+            value=data[1],
             inline=False
         )
 
@@ -353,5 +347,6 @@ async def userinfo(
     await interaction.response.send_message(
         embed=embed
     )
+
 
 bot.run(TOKEN)

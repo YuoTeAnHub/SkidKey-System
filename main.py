@@ -3,83 +3,75 @@ from discord.ext import commands
 from discord import app_commands
 from dotenv import load_dotenv
 
-import os
-import json
+import psycopg2
 import random
 import string
-import psycopg2
+import os
 
 load_dotenv()
 
-TOKEN = os.getenv("DISCORD_TOKEN")
-GUILD_ID = 1497847450919239831
+TOKEN=os.getenv("DISCORD_TOKEN")
+GUILD_ID=1497847450919239831
 
-intents = discord.Intents.default()
-intents.message_content = True
+intents=discord.Intents.default()
+intents.message_content=True
 
-bot = commands.Bot(
+bot=commands.Bot(
     command_prefix="!",
     intents=intents
 )
 
-conn = None
-cursor = None
+conn=None
+cursor=None
 
-colors = {
-    "blue": discord.ButtonStyle.primary,
-    "green": discord.ButtonStyle.success,
-    "red": discord.ButtonStyle.danger,
-    "gray": discord.ButtonStyle.secondary
+
+colors={
+"blue":discord.ButtonStyle.primary,
+"green":discord.ButtonStyle.success,
+"red":discord.ButtonStyle.danger,
+"gray":discord.ButtonStyle.secondary
 }
 
 
 def connect_database():
+
     global conn
     global cursor
 
-    try:
+    db=os.getenv("DATABASE_URL")
 
-        db_url = os.getenv("DATABASE_URL")
+    if not db:
 
-        if not db_url:
-            print("DATABASE_URL NOT FOUND")
-            return False
+        print("DATABASE_URL NOT FOUND")
+        return
 
-        conn = psycopg2.connect(
-            db_url
-        )
+    conn=psycopg2.connect(db)
 
-        cursor = conn.cursor()
+    cursor=conn.cursor()
 
-        cursor.execute("""
-        CREATE TABLE IF NOT EXISTS keys(
-            id SERIAL PRIMARY KEY,
-            key TEXT UNIQUE,
-            used BOOLEAN,
-            discord_id TEXT,
-            hwid TEXT,
-            validation TEXT
-        )
-        """)
+    cursor.execute("""
 
-        conn.commit()
+    CREATE TABLE IF NOT EXISTS keys(
 
-        print("DATABASE CONNECTED")
-        print("KEY TABLE CREATED")
+    id SERIAL PRIMARY KEY,
+    key TEXT UNIQUE,
+    used BOOLEAN,
+    discord_id TEXT,
+    hwid TEXT,
+    validation TEXT
 
-        return True
+    )
 
-    except Exception as e:
+    """)
 
-        print("DATABASE ERROR:")
-        print(e)
+    conn.commit()
 
-        return False
+    print("DATABASE CONNECTED")
 
 
 def generate_random(length):
 
-    chars = string.ascii_uppercase + string.digits
+    chars=string.ascii_uppercase+string.digits
 
     return ''.join(
         random.choice(chars)
@@ -98,7 +90,7 @@ class Panel(discord.ui.View):
 
         super().__init__(timeout=None)
 
-        b1 = discord.ui.Button(
+        b1=discord.ui.Button(
             label="Enter Key",
             style=colors.get(
                 enter_color.lower(),
@@ -106,7 +98,7 @@ class Panel(discord.ui.View):
             )
         )
 
-        b2 = discord.ui.Button(
+        b2=discord.ui.Button(
             label="Get Script",
             style=colors.get(
                 get_color.lower(),
@@ -114,7 +106,7 @@ class Panel(discord.ui.View):
             )
         )
 
-        b3 = discord.ui.Button(
+        b3=discord.ui.Button(
             label="Reset HWID",
             style=colors.get(
                 reset_color.lower(),
@@ -122,43 +114,9 @@ class Panel(discord.ui.View):
             )
         )
 
-        b1.callback = self.enter_click
-        b2.callback = self.script_click
-        b3.callback = self.reset_click
-
         self.add_item(b1)
         self.add_item(b2)
         self.add_item(b3)
-
-    async def enter_click(
-        self,
-        interaction
-    ):
-
-        await interaction.response.send_message(
-            "Enter Key system soon",
-            ephemeral=True
-        )
-
-    async def script_click(
-        self,
-        interaction
-    ):
-
-        await interaction.response.send_message(
-            "Script soon",
-            ephemeral=True
-        )
-
-    async def reset_click(
-        self,
-        interaction
-    ):
-
-        await interaction.response.send_message(
-            "HWID reset soon",
-            ephemeral=True
-        )
 
 
 @bot.event
@@ -166,186 +124,417 @@ async def on_ready():
 
     connect_database()
 
-    guild = discord.Object(
+    guild=discord.Object(
         id=GUILD_ID
     )
 
-    synced = await bot.tree.sync(
+    synced=await bot.tree.sync(
         guild=guild
     )
 
-    print(f"Synced {len(synced)} commands")
-    print(bot.user)
+    print(
+        f"Synced {len(synced)}"
+    )
+
     print("READY")
 
 
+
 @bot.tree.command(
-    guild=discord.Object(
-        id=GUILD_ID
-    )
+guild=discord.Object(id=GUILD_ID)
 )
+
 async def sendpanel(
-    interaction: discord.Interaction,
-    title: str,
-    description: str,
-    field: str,
-    enter_color: str,
-    get_color: str,
-    reset_color: str
+
+interaction:discord.Interaction,
+title:str,
+description:str,
+field:str,
+enter_color:str="blue",
+get_color:str="green",
+reset_color:str="red"
+
 ):
 
-    embed = discord.Embed(
-        title=title,
-        description=description
+    embed=discord.Embed(
+
+    title=title,
+    description=description
+
     )
 
     embed.set_footer(
-        text=field
+    text=field
     )
 
     await interaction.response.send_message(
-        "✅ Панель создана",
-        ephemeral=True
+    "✅ Панель создана",
+    ephemeral=True
     )
 
     await interaction.channel.send(
-        embed=embed,
-        view=Panel(
-            enter_color,
-            get_color,
-            reset_color
-        )
+    embed=embed,
+    view=Panel(
+    enter_color,
+    get_color,
+    reset_color
+    )
     )
 
 
 @bot.tree.command(
-    guild=discord.Object(
-        id=GUILD_ID
-    )
+guild=discord.Object(id=GUILD_ID)
 )
+
 async def generatekey(
-    interaction: discord.Interaction,
-    validate: str,
-    key: str = None,
-    prefix: str = None,
-    length: int = 24
+
+interaction:discord.Interaction,
+validate:str,
+key:str=None,
+prefix:str=None,
+length:int=24
+
 ):
 
-    global cursor
-    global conn
+
+    allowed=[
+
+    "seconds",
+    "hours",
+    "days",
+    "months",
+    "years"
+
+    ]
+
+
+    validate=validate.lower()
+
+
+    if validate!="lifetime":
+
+        try:
+
+            amount,unit=validate.split()
+
+            amount=int(amount)
+
+            if unit not in allowed:
+
+                await interaction.response.send_message(
+                "❌ only seconds/hours/days/months/years",
+                ephemeral=True
+                )
+
+                return
+
+
+        except:
+
+            await interaction.response.send_message(
+            "❌ Example: 30 days",
+            ephemeral=True
+            )
+
+            return
+
+
 
     if key is None:
 
-        key = generate_random(
-            length
-        )
+        key=generate_random(length)
+
 
     if prefix:
 
-        key = f"{prefix}-{key}"
+        key=f"{prefix}-{key}"
 
-    cursor.execute(
+
+
+    try:
+
+        cursor.execute(
         """
         INSERT INTO keys
         (key,used,discord_id,hwid,validation)
         VALUES(%s,%s,%s,%s,%s)
         """,
+
         (
-            key,
-            False,
-            None,
-            None,
-            validate
+
+        key,
+        False,
+        None,
+        None,
+        validate
+
         )
+        )
+
+        conn.commit()
+
+    except:
+
+        await interaction.response.send_message(
+        "❌ key exists",
+        ephemeral=True
+        )
+
+        return
+
+
+    await interaction.response.send_message(
+
+    f"✅ Generated:\n{key}",
+
+    ephemeral=True
+
+    )
+
+
+
+@bot.tree.command(
+guild=discord.Object(id=GUILD_ID)
+)
+
+async def deletekey(
+
+interaction:discord.Interaction,
+key:str
+
+):
+
+
+    cursor.execute(
+
+    """
+
+    DELETE FROM keys
+    WHERE key=%s
+
+    """,
+
+    (key,)
+
     )
 
     conn.commit()
 
-    embed = discord.Embed(
-        title="Key Generated",
-        color=discord.Color.green()
-    )
-
-    embed.add_field(
-        name="Key",
-        value=key,
-        inline=False
-    )
-
-    embed.add_field(
-        name="Validation",
-        value=validate
-    )
 
     await interaction.response.send_message(
-        embed=embed,
-        ephemeral=True
+    f"Deleted:\n{key}",
+    ephemeral=True
     )
+
 
 
 @bot.tree.command(
-    guild=discord.Object(
-        id=GUILD_ID
-    )
+guild=discord.Object(id=GUILD_ID)
 )
-async def userinfo(
-    interaction: discord.Interaction,
-    user: discord.Member
+
+async def keyslist(
+interaction:discord.Interaction
 ):
 
+
     cursor.execute(
-        """
-        SELECT key,validation
-        FROM keys
-        WHERE discord_id=%s
-        """,
-        (
-            str(user.id),
-        )
+    "SELECT key FROM keys LIMIT 20"
     )
 
-    data = cursor.fetchone()
+    rows=cursor.fetchall()
 
-    embed = discord.Embed(
-        title="User Info"
+
+    if not rows:
+
+        await interaction.response.send_message(
+        "No keys",
+        ephemeral=True
+        )
+
+        return
+
+
+    text=""
+
+
+    for row in rows:
+
+        text+=f"{row[0]}\n"
+
+
+    embed=discord.Embed(
+
+    title="Keys List",
+    description=text
+
+    )
+
+
+    await interaction.response.send_message(
+    embed=embed,
+    ephemeral=True
+    )
+
+
+
+@bot.tree.command(
+guild=discord.Object(id=GUILD_ID)
+)
+
+async def keyinfo(
+
+interaction:discord.Interaction,
+key:str
+
+):
+
+
+    cursor.execute(
+
+    """
+
+    SELECT used,
+    discord_id,
+    hwid,
+    validation
+
+    FROM keys
+
+    WHERE key=%s
+
+    """,
+
+    (key,)
+
+    )
+
+
+    data=cursor.fetchone()
+
+
+    if not data:
+
+        await interaction.response.send_message(
+        "key not found",
+        ephemeral=True
+        )
+
+        return
+
+
+    embed=discord.Embed(
+    title="Key Info"
+    )
+
+
+    embed.add_field(
+    name="Used",
+    value=data[0],
+    inline=False
     )
 
     embed.add_field(
-        name="Discord ID",
-        value=user.id,
-        inline=False
+    name="Discord ID",
+    value=data[1] or "None",
+    inline=False
     )
+
+    embed.add_field(
+    name="HWID",
+    value=data[2] or "None",
+    inline=False
+    )
+
+    embed.add_field(
+    name="Validation",
+    value=data[3],
+    inline=False
+    )
+
+
+    await interaction.response.send_message(
+    embed=embed,
+    ephemeral=True
+    )
+
+
+
+@bot.tree.command(
+guild=discord.Object(id=GUILD_ID)
+)
+
+async def userinfo(
+
+interaction:discord.Interaction,
+user:discord.Member
+
+):
+
+
+    cursor.execute(
+
+    """
+
+    SELECT key,validation
+
+    FROM keys
+
+    WHERE discord_id=%s
+
+    """,
+
+    (str(user.id),)
+
+    )
+
+
+    data=cursor.fetchone()
+
+
+    embed=discord.Embed(
+    title="User Info"
+    )
+
+
+    embed.add_field(
+    name="Discord ID",
+    value=user.id,
+    inline=False
+    )
+
 
     if data:
 
         embed.add_field(
-            name="User Key",
-            value=data[0],
-            inline=False
+        name="User Key",
+        value=data[0],
+        inline=False
         )
 
         embed.add_field(
-            name="Key Validation",
-            value=data[1],
-            inline=False
+        name="Validation",
+        value=data[1],
+        inline=False
         )
+
 
     else:
 
         embed.add_field(
-            name="User Key",
-            value="Non-User",
-            inline=False
+        name="User Key",
+        value="Non-User",
+        inline=False
         )
 
         embed.add_field(
-            name="Key Validation",
-            value="Non-User",
-            inline=False
+        name="Validation",
+        value="Non-User",
+        inline=False
         )
 
+
     await interaction.response.send_message(
-        embed=embed
+    embed=embed
     )
 
 

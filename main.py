@@ -276,8 +276,9 @@ class Panel(discord.ui.View):
         user_key=data[0]
 
         script=(
-            f'G.status="{user_key}"\n\n'
-            f'loadstring(game:HttpGet("https://raw.githubusercontent.com/YuoTeAnHub/SkidScriptLoader/refs/heads/main/Loader.lua"))()' 
+            f'getgenv().G={{}}\n'
+            f'G.Key="{user_key}"\n\n'
+            f'loadstring(game:HttpGet("https://raw.githubusercontent.com/YuoTeAnHub/SkidScriptLoader/refs/heads/main/Loader.lua"))()'
         )
 
         await interaction.response.send_message(

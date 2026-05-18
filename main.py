@@ -262,7 +262,7 @@ class Panel(discord.ui.View):
 
         cursor.execute(
         """
-        SELECT key
+        SELECT key, blacklisted
         FROM keys
         WHERE
         discord_id=%s
@@ -284,6 +284,16 @@ class Panel(discord.ui.View):
             return
 
         user_key=data[0]
+        blacklisted=data[1]
+
+        if blacklisted=="Yes":
+
+            await interaction.response.send_message(
+            "❌ Your key has been blacklisted",
+            ephemeral=True
+            )
+
+            return
 
         script=(
             f'getgenv().G={{}}\n'
@@ -933,6 +943,7 @@ async def whitelist(
 interaction:discord.Interaction,
 user:discord.Member,
 validate:str,
+key:str=None,
 prefix:str=None,
 length:int=24
 
@@ -993,7 +1004,7 @@ length:int=24
 
             return
 
-    key=generate_random(length)
+    key=generate_random(length) if key is None else key
 
     if prefix:
         key=f"{prefix}-{key}"

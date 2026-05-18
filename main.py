@@ -56,8 +56,9 @@ def connect_database():
 
     id SERIAL PRIMARY KEY,
     key TEXT UNIQUE,
-    used BOOLEAN,
+    used BOOLEAN DEFAULT FALSE,
     discord_id TEXT,
+    roblox_id BIGINT,
     hwid TEXT,
     validation TEXT,
     created_at TIMESTAMP,
@@ -70,7 +71,12 @@ def connect_database():
 
     conn.commit()
 
-    for col, coltype in [("created_at", "TIMESTAMP"), ("expires_at", "TIMESTAMP"), ("expired", "TEXT")]:
+    for col, coltype in [
+        ("created_at", "TIMESTAMP"),
+        ("expires_at", "TIMESTAMP"),
+        ("expired", "TEXT"),
+        ("roblox_id", "BIGINT"),
+    ]:
 
         cursor.execute(
         """
@@ -161,6 +167,7 @@ async def expire_keys():
 
             used=%s,
             discord_id=%s,
+            roblox_id=%s,
             hwid=%s,
             expires_at=%s,
             expired=%s
@@ -172,6 +179,7 @@ async def expire_keys():
             (
 
             False,
+            None,
             None,
             None,
             None,
@@ -739,6 +747,7 @@ key:str
 
     SELECT used,
     discord_id,
+    roblox_id,
     hwid,
     validation,
     expired
@@ -785,20 +794,26 @@ key:str
     )
 
     embed.add_field(
-    name="HWID",
+    name="Roblox ID",
     value=data[2] or "None",
     inline=False
     )
 
     embed.add_field(
+    name="HWID",
+    value=data[3] or "None",
+    inline=False
+    )
+
+    embed.add_field(
     name="Validation",
-    value=data[3],
+    value=data[4],
     inline=False
     )
 
     embed.add_field(
     name="Expired",
-    value=data[4] or "NULL",
+    value=data[5] or "NULL",
     inline=False
     )
 
@@ -826,7 +841,7 @@ user:discord.Member
 
     """
 
-    SELECT key,validation
+    SELECT key,validation,roblox_id
 
     FROM keys
 
@@ -868,6 +883,12 @@ user:discord.Member
         inline=False
         )
 
+        embed.add_field(
+        name="Roblox ID",
+        value=data[2] or "None",
+        inline=False
+        )
+
 
     else:
 
@@ -879,6 +900,12 @@ user:discord.Member
 
         embed.add_field(
         name="Validation",
+        value="Non-User",
+        inline=False
+        )
+
+        embed.add_field(
+        name="Roblox ID",
         value="Non-User",
         inline=False
         )

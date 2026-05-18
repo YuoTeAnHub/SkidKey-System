@@ -63,7 +63,8 @@ def connect_database():
     validation TEXT,
     created_at TIMESTAMP,
     expires_at TIMESTAMP,
-    expired TEXT
+    expired TEXT,
+    blacklisted TEXT
 
     )
 
@@ -76,6 +77,7 @@ def connect_database():
         ("expires_at", "TIMESTAMP"),
         ("expired", "TEXT"),
         ("roblox_id", "BIGINT"),
+        ("blacklisted", "TEXT"),
     ]:
 
         cursor.execute(
@@ -750,7 +752,8 @@ key:str
     roblox_id,
     hwid,
     validation,
-    expired
+    expired,
+    blacklisted
 
     FROM keys
 
@@ -813,7 +816,13 @@ key:str
 
     embed.add_field(
     name="Expired",
-    value=data[5] or "NULL",
+    value=data[5] or "No",
+    inline=False
+    )
+
+    embed.add_field(
+    name="Blacklisted",
+    value=data[6] or "No",
     inline=False
     )
 
@@ -915,6 +924,217 @@ user:discord.Member
     embed=embed
     )
 
+@bot.tree.command(
+guild=discord.Object(id=GUILD_ID)
+)
+
+async def whitelist(
+
+interaction:discord.Interaction,
+user:discord.Member,
+validate:str,
+prefix:str=None,
+length:int=24
+
+):
+
+    allowed=[
+    "seconds",
+    "hours",
+    "days",
+    "months",
+    "years"
+    ]
+
+    validate=validate.lower()
+
+    created=datetime.now()
+
+    expires=None
+
+    if validate!="lifetime":
+
+        try:
+
+            amount,unit=validate.split()
+
+            amount=int(amount)
+
+            if unit not in allowed:
+
+                await interaction.response.send_message(
+                "❌ only seconds/hours/days/months/years",
+                ephemeral=True
+                )
+
+                return
+
+            if unit=="seconds":
+                expires=created+timedelta(seconds=amount)
+
+            elif unit=="hours":
+                expires=created+timedelta(hours=amount)
+
+            elif unit=="days":
+                expires=created+timedelta(days=amount)
+
+            elif unit=="months":
+                expires=created+timedelta(days=amount*30)
+
+            elif unit=="years":
+                expires=created+timedelta(days=amount*365)
+
+        except:
+
+            await interaction.response.send_message(
+            "❌ Example: 30 days",
+            ephemeral=True
+            )
+
+            return
+
+    key=generate_random(length)
+
+    if prefix:
+        key=f"{prefix}-{key}"
+
+    cursor.execute(
+    """
+    SELECT key FROM keys WHERE key=%s
+    """,
+    (key,)
+    )
+
+    if cursor.fetchone():
+
+        await interaction.response.send_message(
+        "❌ Key collision, try again",
+        ephemeral=True
+        )
+
+        return
+
+    cursor.execute(
+    """
+    INSERT INTO keys
+    (
+    key,
+    used,
+    discord_id,
+    hwid,
+    validation,
+    created_at,
+    expires_at
+    )
+    VALUES(%s,%s,%s,%s,%s,%s,%s)
+    """,
+    (
+    key,
+    False,
+    None,
+    None,
+    validate,
+    created,
+    expires
+    )
+    )
+
+    conn.commit()
+
+    try:
+
+        embed=discord.Embed(
+        title="**You Have Been Whitelisted**",
+        color=discord.Color.green()
+        )
+
+        embed.add_field(
+        name="Key",
+        value=f"`{key}`",
+        inline=False
+        )
+
+        embed.add_field(
+        name="Validate",
+        value=validate,
+        inline=False
+        )
+
+        await user.send(embed=embed)
+
+        await interaction.response.send_message(
+        f"✅ Whitelisted {user.mention}\nKey: `{key}`",
+        ephemeral=True
+        )
+
+    except discord.Forbidden:
+
+        await interaction.response.send_message(
+        f"✅ Key generated but couldn't DM {user.mention} (DMs closed)\nKey: `{key}`",
+        ephemeral=True
+        )
+
+
+@bot.tree.command(
+guild=discord.Object(id=GUILD_ID)
+)
+
+async def blacklist(
+
+interaction:discord.Interaction,
+user:discord.Member
+
+):
+
+    cursor.execute(
+    """
+    SELECT key FROM keys
+    WHERE discord_id=%s
+    AND used=TRUE
+    AND expired IS NULL
+    """,
+    (str(user.id),)
+    )
+
+    data=cursor.fetchone()
+
+    if not data:
+
+        await interaction.response.send_message(
+        "❌ User has no active key",
+        ephemeral=True
+        )
+
+        return
+
+    key=data[0]
+
+    cursor.execute(
+    """
+    UPDATE keys
+    SET blacklisted=%s
+    WHERE key=%s
+    """,
+    ("Yes", key)
+    )
+
+    conn.commit()
+
+    await interaction.response.send_message(
+    f"🚫 Blacklisted {user.mention}\nKey: `{key}`",
+    ephemeral=True
+    )
+
+    try:
+
+        await user.send(
+        f"🚫 Your key has been blacklisted:\n`{key}`"
+        )
+
+    except:
+        pass
+
+
 from flask import Flask, request, jsonify
 from threading import Thread
 import os
@@ -946,7 +1166,8 @@ def check():
     SELECT
     used,
     expired,
-    roblox_id
+    roblox_id,
+    blacklisted
     FROM keys
     WHERE key=%s
     """,(key,))
@@ -959,9 +1180,13 @@ def check():
     used=data[0]
     expired=data[1]
     roblox_id=data[2]
+    blacklisted=data[3]
 
     if expired=="Yes":
         return jsonify({"valid":False})
+
+    if blacklisted=="Yes":
+        return jsonify({"valid":False,"reason":"blacklisted"})
 
     if not used:
         return jsonify({"valid":False})

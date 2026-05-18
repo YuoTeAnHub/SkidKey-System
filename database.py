@@ -31,7 +31,8 @@ def connect_database():
             validation TEXT,
             created_at TIMESTAMP,
             expires_at TIMESTAMP,
-            expired TEXT
+            expired TEXT,
+            blacklisted TEXT
         )
         """)
 
@@ -43,6 +44,7 @@ def connect_database():
             ("expires_at", "TIMESTAMP"),
             ("expired", "TEXT"),
             ("roblox_id", "BIGINT"),
+            ("blacklisted", "TEXT"),
         ]:
             cursor.execute(
                 """

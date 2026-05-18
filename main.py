@@ -25,6 +25,12 @@ bot=commands.Bot(
 conn=None
 cursor=None
 
+visible_msgs=False
+
+
+def ep():
+    return not visible_msgs
+
 
 colors={
 "blue":discord.ButtonStyle.primary,
@@ -278,7 +284,7 @@ class Panel(discord.ui.View):
 
             await interaction.response.send_message(
             "❌ Reedem Key To Get Script !",
-            ephemeral=True
+            ephemeral=ep()
             )
 
             return
@@ -290,7 +296,7 @@ class Panel(discord.ui.View):
 
             await interaction.response.send_message(
             "❌ Your key has been blacklisted",
-            ephemeral=True
+            ephemeral=ep()
             )
 
             return
@@ -303,7 +309,7 @@ class Panel(discord.ui.View):
 
         await interaction.response.send_message(
         f"```lua\n{script}\n```",
-        ephemeral=True
+        ephemeral=ep()
         )
 
 
@@ -330,7 +336,7 @@ class Panel(discord.ui.View):
 
         await interaction.response.send_message(
             "✅ HWID Reset",
-            ephemeral=True
+            ephemeral=ep()
         )
 
 
@@ -371,7 +377,7 @@ class KeyModal(
 
             await interaction.response.send_message(
             "❌ Invalid key",
-            ephemeral=True
+            ephemeral=ep()
             )
 
             return
@@ -384,7 +390,7 @@ class KeyModal(
 
                 await interaction.response.send_message(
                 "❌ Key Expired",
-                ephemeral=True
+                ephemeral=ep()
                 )
 
                 return
@@ -393,7 +399,7 @@ class KeyModal(
 
             await interaction.response.send_message(
             "❌ Key already used",
-            ephemeral=True
+            ephemeral=ep()
             )
 
             return
@@ -437,7 +443,7 @@ class KeyModal(
 
         await interaction.response.send_message(
         "✅ Key activated",
-        ephemeral=True
+        ephemeral=ep()
         )
 
 
@@ -495,7 +501,7 @@ reset_color:str="red"
 
     await interaction.response.send_message(
     "✅ Панель создана",
-    ephemeral=True
+    ephemeral=ep()
     )
 
     await interaction.channel.send(
@@ -552,7 +558,7 @@ length:int=24
 
                 await interaction.response.send_message(
                 "❌ only seconds/hours/days/months/years",
-                ephemeral=True
+                ephemeral=ep()
                 )
 
                 return
@@ -577,7 +583,7 @@ length:int=24
 
             await interaction.response.send_message(
             "❌ Example: 30 days",
-            ephemeral=True
+            ephemeral=ep()
             )
 
             return
@@ -609,7 +615,7 @@ length:int=24
 
         await interaction.response.send_message(
         "❌ key exists",
-        ephemeral=True
+        ephemeral=ep()
         )
 
         return
@@ -651,7 +657,7 @@ length:int=24
 
     f"✅ Generated:\n{key}",
 
-    ephemeral=True
+    ephemeral=ep()
 
     )
 
@@ -687,7 +693,7 @@ key:str
 
     await interaction.response.send_message(
     f"Deleted:\n{key}",
-    ephemeral=True
+    ephemeral=ep()
     )
 
 
@@ -712,7 +718,7 @@ interaction:discord.Interaction
 
         await interaction.response.send_message(
         "No keys",
-        ephemeral=True
+        ephemeral=ep()
         )
 
         return
@@ -736,7 +742,7 @@ interaction:discord.Interaction
 
     await interaction.response.send_message(
     embed=embed,
-    ephemeral=True
+    ephemeral=ep()
     )
 
 
@@ -783,7 +789,7 @@ key:str
 
         await interaction.response.send_message(
         "key not found",
-        ephemeral=True
+        ephemeral=ep()
         )
 
         return
@@ -839,7 +845,7 @@ key:str
 
     await interaction.response.send_message(
     embed=embed,
-    ephemeral=True
+    ephemeral=ep()
     )
 
 
@@ -975,7 +981,7 @@ length:int=24
 
                 await interaction.response.send_message(
                 "❌ only seconds/hours/days/months/years",
-                ephemeral=True
+                ephemeral=ep()
                 )
 
                 return
@@ -999,7 +1005,7 @@ length:int=24
 
             await interaction.response.send_message(
             "❌ Example: 30 days",
-            ephemeral=True
+            ephemeral=ep()
             )
 
             return
@@ -1020,7 +1026,7 @@ length:int=24
 
         await interaction.response.send_message(
         "❌ Key collision, try again",
-        ephemeral=True
+        ephemeral=ep()
         )
 
         return
@@ -1075,14 +1081,14 @@ length:int=24
 
         await interaction.response.send_message(
         f"✅ Whitelisted {user.mention}\nKey: `{key}`",
-        ephemeral=True
+        ephemeral=ep()
         )
 
     except discord.Forbidden:
 
         await interaction.response.send_message(
         f"✅ Key generated but couldn't DM {user.mention} (DMs closed)\nKey: `{key}`",
-        ephemeral=True
+        ephemeral=ep()
         )
 
 
@@ -1113,7 +1119,7 @@ user:discord.Member
 
         await interaction.response.send_message(
         "❌ User has no active key",
-        ephemeral=True
+        ephemeral=ep()
         )
 
         return
@@ -1133,7 +1139,7 @@ user:discord.Member
 
     await interaction.response.send_message(
     f"🚫 Blacklisted {user.mention}\nKey: `{key}`",
-    ephemeral=True
+    ephemeral=ep()
     )
 
     try:
@@ -1144,6 +1150,40 @@ user:discord.Member
 
     except:
         pass
+
+
+@bot.tree.command(
+guild=discord.Object(id=GUILD_ID)
+)
+
+async def visiblecmds(
+
+interaction:discord.Interaction,
+visible:str
+
+):
+
+    global visible_msgs
+
+    visible=visible.lower()
+
+    if visible not in ("yes","no"):
+
+        await interaction.response.send_message(
+        "❌ Use Yes or No",
+        ephemeral=True
+        )
+
+        return
+
+    visible_msgs = (visible=="yes")
+
+    status="visible to everyone" if visible_msgs else "only visible to you"
+
+    await interaction.response.send_message(
+    f"✅ Bot messages are now **{status}**",
+    ephemeral=True
+    )
 
 
 from flask import Flask, request, jsonify

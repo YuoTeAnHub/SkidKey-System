@@ -176,7 +176,7 @@ async def expire_keys():
                 )
 
                 await user.send(
-                f"❌ Ваш ключ закончился:\n{key}"
+                f"Your key has expired:\n{key}"
                 )
 
             except:
@@ -300,7 +300,7 @@ class Panel(discord.ui.View):
         if not data:
 
             await interaction.response.send_message(
-            "❌ Reedem Key To Get Script !",
+            "Redeem a key first to get the script.",
             ephemeral=ep()
             )
 
@@ -312,7 +312,7 @@ class Panel(discord.ui.View):
         if blacklisted=="Yes":
 
             await interaction.response.send_message(
-            "❌ Your key has been blacklisted",
+            "Your key has been blacklisted.",
             ephemeral=ep()
             )
 
@@ -352,7 +352,7 @@ class Panel(discord.ui.View):
         conn.commit()
 
         await interaction.response.send_message(
-            "✅ HWID Reset",
+            "HWID has been reset.",
             ephemeral=ep()
         )
 
@@ -394,7 +394,7 @@ class TrialPanel(discord.ui.View):
 
         discord_id = str(interaction.user.id)
 
-        # Проверяем — уже получал trial по discord?
+        # Check if user already claimed a trial
         cursor.execute(
         """
         SELECT key FROM trial_keys
@@ -408,13 +408,13 @@ class TrialPanel(discord.ui.View):
         if existing:
 
             await interaction.followup.send(
-            f"❌ Ты уже получал Trial ключ:\n`{existing[0]}`",
+            f"You have already claimed a trial key:\n`{existing[0]}`",
             ephemeral=True
             )
 
             return
 
-        # Генерируем уникальный ключ (до 10 попыток)
+        # Generate unique key (up to 10 attempts)
         trial_key = None
 
         for _ in range(10):
@@ -433,7 +433,7 @@ class TrialPanel(discord.ui.View):
         if not trial_key:
 
             await interaction.followup.send(
-            "❌ Не удалось сгенерировать ключ, попробуй позже",
+            "Failed to generate a key, please try again later.",
             ephemeral=True
             )
 
@@ -450,7 +450,7 @@ class TrialPanel(discord.ui.View):
         conn.commit()
 
         embed = discord.Embed(
-        title="🎁 Твой Trial Ключ",
+        title="Your Trial Key",
         color=discord.Color.green()
         )
 
@@ -460,7 +460,7 @@ class TrialPanel(discord.ui.View):
         inline=False
         )
 
-        embed.set_footer(text="Этот ключ выдаётся только один раз")
+        embed.set_footer(text="This key can only be claimed once.")
 
         await interaction.followup.send(
         embed=embed,
@@ -504,7 +504,7 @@ class KeyModal(
         if not data:
 
             await interaction.response.send_message(
-            "❌ Invalid key",
+            "Invalid key.",
             ephemeral=ep()
             )
 
@@ -517,7 +517,7 @@ class KeyModal(
             if datetime.now()>expire:
 
                 await interaction.response.send_message(
-                "❌ Key Expired",
+                "Key has expired.",
                 ephemeral=ep()
                 )
 
@@ -526,7 +526,7 @@ class KeyModal(
         if data[0]:
 
             await interaction.response.send_message(
-            "❌ Key already used",
+            "Key is already in use.",
             ephemeral=ep()
             )
 
@@ -570,7 +570,7 @@ class KeyModal(
 
 
         await interaction.response.send_message(
-        "✅ Key activated",
+        "Key activated successfully.",
         ephemeral=ep()
         )
 
@@ -628,7 +628,7 @@ reset_color:str="red"
     )
 
     await interaction.response.send_message(
-    "✅ Панель создана",
+    "Panel created.",
     ephemeral=ep()
     )
 
@@ -669,7 +669,7 @@ trial_color:str="green"
     )
 
     await interaction.response.send_message(
-    "✅ Trial панель создана",
+    "Trial panel created.",
     ephemeral=ep()
     )
 
@@ -707,7 +707,7 @@ user:discord.Member
     if not existing:
 
         await interaction.followup.send(
-        f"❌ У {user.mention} нет trial ключа",
+        f"User {user.mention} has no trial key.",
         ephemeral=ep()
         )
 
@@ -726,7 +726,7 @@ user:discord.Member
     conn.commit()
 
     await interaction.followup.send(
-    f"✅ Trial сброшен для {user.mention}\nСтарый ключ: `{old_key}`\nТеперь они могут получить новый через кнопку",
+    f"Trial reset for {user.mention}\nOld key: `{old_key}`\nThey can now claim a new one via the button.",
     ephemeral=ep()
     )
 
@@ -775,7 +775,7 @@ length:int=24
             if unit not in allowed:
 
                 await interaction.followup.send(
-                "❌ only seconds/hours/days/months/years",
+                "Invalid unit. Use: seconds / hours / days / months / years",
                 ephemeral=ep()
                 )
 
@@ -800,7 +800,7 @@ length:int=24
         except:
 
             await interaction.followup.send(
-            "❌ Example: 30 days",
+            "Invalid format. Example: 30 days",
             ephemeral=ep()
             )
 
@@ -832,7 +832,7 @@ length:int=24
     if exists:
 
         await interaction.followup.send(
-        "❌ key exists",
+        "Key already exists.",
         ephemeral=ep()
         )
 
@@ -873,7 +873,7 @@ length:int=24
 
     await interaction.followup.send(
 
-    f"✅ Generated:\n{key}",
+    f"Key generated:\n{key}",
 
     ephemeral=ep()
 
@@ -1204,7 +1204,7 @@ length:int=24
             if unit not in allowed:
 
                 await interaction.followup.send(
-                "❌ only seconds/hours/days/months/years",
+                "Invalid unit. Use: seconds / hours / days / months / years",
                 ephemeral=ep()
                 )
 
@@ -1228,7 +1228,7 @@ length:int=24
         except:
 
             await interaction.followup.send(
-            "❌ Example: 30 days",
+            "Invalid format. Example: 30 days",
             ephemeral=ep()
             )
 
@@ -1249,7 +1249,7 @@ length:int=24
     if cursor.fetchone():
 
         await interaction.followup.send(
-        "❌ Key collision, try again",
+        "Key already exists, please try again.",
         ephemeral=ep()
         )
 
@@ -1285,7 +1285,7 @@ length:int=24
     try:
 
         embed=discord.Embed(
-        title="**You Have Been Whitelisted**",
+        title="You Have Been Whitelisted",
         color=discord.Color.green()
         )
 
@@ -1304,14 +1304,14 @@ length:int=24
         await user.send(embed=embed)
 
         await interaction.followup.send(
-        f"✅ Whitelisted {user.mention}\nKey: `{key}`",
+        f"Whitelisted {user.mention}\nKey: `{key}`",
         ephemeral=ep()
         )
 
     except discord.Forbidden:
 
         await interaction.followup.send(
-        f"✅ Key generated but couldn't DM {user.mention} (DMs closed)\nKey: `{key}`",
+        f"Key generated but could not DM {user.mention} (DMs are closed)\nKey: `{key}`",
         ephemeral=ep()
         )
 
@@ -1344,7 +1344,7 @@ user:discord.Member
     if not data:
 
         await interaction.followup.send(
-        "❌ User has no active key",
+        "This user has no active key.",
         ephemeral=ep()
         )
 
@@ -1364,14 +1364,14 @@ user:discord.Member
     conn.commit()
 
     await interaction.followup.send(
-    f"🚫 Blacklisted {user.mention}\nKey: `{key}`",
+    f"Blacklisted {user.mention}\nKey: `{key}`",
     ephemeral=ep()
     )
 
     try:
 
         await user.send(
-        f"🚫 Your key has been blacklisted:\n`{key}`"
+        f"Your key has been blacklisted:\n`{key}`"
         )
 
     except:
@@ -1396,7 +1396,7 @@ visible:str
     if visible not in ("yes","no"):
 
         await interaction.response.send_message(
-        "❌ Use Yes or No",
+        "Invalid input. Use: yes or no",
         ephemeral=True
         )
 
@@ -1407,7 +1407,7 @@ visible:str
     status="visible to everyone" if visible_msgs else "only visible to you"
 
     await interaction.response.send_message(
-    f"✅ Bot messages are now **{status}**",
+    f"Bot messages are now **{status}**",
     ephemeral=True
     )
 
@@ -1439,7 +1439,7 @@ def check():
     if not key:
         return jsonify({"valid":False})
 
-    # --- Сначала проверяем основную таблицу keys ---
+    # --- Check main keys table first ---
     cursor.execute("""
     SELECT
     used,
@@ -1489,7 +1489,7 @@ def check():
 
         return jsonify({"valid":True})
 
-    # --- Если не найден в keys — проверяем trial_keys ---
+    # --- Not found in keys, check trial_keys ---
     cursor.execute("""
     SELECT roblox_id
     FROM trial_keys

@@ -60,6 +60,18 @@ def connect_database():
 
         conn.commit()
 
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS trial_keys(
+            id SERIAL PRIMARY KEY,
+            key TEXT UNIQUE,
+            discord_id TEXT,
+            roblox_id BIGINT,
+            created_at TIMESTAMP
+        )
+        """)
+
+        conn.commit()
+
         print("DATABASE CONNECTED")
         return conn, cursor
 

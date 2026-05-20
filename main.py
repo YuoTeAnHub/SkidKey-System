@@ -107,6 +107,22 @@ def connect_database():
 
     conn.commit()
 
+    cursor.execute("""
+
+    CREATE TABLE IF NOT EXISTS trial_keys(
+
+    id SERIAL PRIMARY KEY,
+    key TEXT UNIQUE,
+    discord_id TEXT,
+    roblox_id BIGINT,
+    created_at TIMESTAMP
+
+    )
+
+    """)
+
+    conn.commit()
+
     print("DATABASE CONNECTED")
 
 
@@ -341,6 +357,117 @@ class Panel(discord.ui.View):
         )
 
 
+
+def generate_trial_key():
+
+    def seg(n):
+        return ''.join(
+            random.choice(string.ascii_uppercase + string.digits)
+            for _ in range(n)
+        )
+
+    return f"Trial-{seg(2)}-{seg(2)}-{seg(2)}"
+
+
+class TrialPanel(discord.ui.View):
+
+    def __init__(self, trial_color="green"):
+
+        super().__init__(timeout=None)
+
+        b = discord.ui.Button(
+            label="Trial Key",
+            style=colors.get(
+                trial_color.lower(),
+                discord.ButtonStyle.success
+            )
+        )
+
+        b.callback = self.get_trial
+
+        self.add_item(b)
+
+
+    async def get_trial(self, interaction):
+
+        await interaction.response.defer(ephemeral=True)
+
+        discord_id = str(interaction.user.id)
+
+        # Проверяем — уже получал trial по discord?
+        cursor.execute(
+        """
+        SELECT key FROM trial_keys
+        WHERE discord_id=%s
+        """,
+        (discord_id,)
+        )
+
+        existing = cursor.fetchone()
+
+        if existing:
+
+            await interaction.followup.send(
+            f"❌ Ты уже получал Trial ключ:\n`{existing[0]}`",
+            ephemeral=True
+            )
+
+            return
+
+        # Генерируем уникальный ключ (до 10 попыток)
+        trial_key = None
+
+        for _ in range(10):
+
+            candidate = generate_trial_key()
+
+            cursor.execute(
+            "SELECT key FROM trial_keys WHERE key=%s",
+            (candidate,)
+            )
+
+            if not cursor.fetchone():
+                trial_key = candidate
+                break
+
+        if not trial_key:
+
+            await interaction.followup.send(
+            "❌ Не удалось сгенерировать ключ, попробуй позже",
+            ephemeral=True
+            )
+
+            return
+
+        cursor.execute(
+        """
+        INSERT INTO trial_keys (key, discord_id, created_at)
+        VALUES (%s, %s, %s)
+        """,
+        (trial_key, discord_id, datetime.now())
+        )
+
+        conn.commit()
+
+        embed = discord.Embed(
+        title="🎁 Твой Trial Ключ",
+        color=discord.Color.green()
+        )
+
+        embed.add_field(
+        name="Key",
+        value=f"`{trial_key}`",
+        inline=False
+        )
+
+        embed.set_footer(text="Этот ключ выдаётся только один раз")
+
+        await interaction.followup.send(
+        embed=embed,
+        ephemeral=True
+        )
+
+
 class KeyModal(
     discord.ui.Modal,
     title="Enter Key"
@@ -512,6 +639,95 @@ reset_color:str="red"
     get_color,
     reset_color
     )
+    )
+
+
+
+@bot.tree.command(
+guild=discord.Object(id=GUILD_ID)
+)
+
+async def sendpaneltrial(
+
+interaction:discord.Interaction,
+title:str,
+description:str,
+field:str,
+trial_color:str="green"
+
+):
+
+    embed=discord.Embed(
+
+    title=title,
+    description=description
+
+    )
+
+    embed.set_footer(
+    text=field
+    )
+
+    await interaction.response.send_message(
+    "✅ Trial панель создана",
+    ephemeral=ep()
+    )
+
+    await interaction.channel.send(
+    embed=embed,
+    view=TrialPanel(trial_color)
+    )
+
+
+@bot.tree.command(
+guild=discord.Object(id=GUILD_ID)
+)
+
+async def resettrial(
+
+interaction:discord.Interaction,
+user:discord.Member
+
+):
+
+    await interaction.response.defer(ephemeral=ep())
+
+    discord_id = str(user.id)
+
+    cursor.execute(
+    """
+    SELECT key FROM trial_keys
+    WHERE discord_id=%s
+    """,
+    (discord_id,)
+    )
+
+    existing = cursor.fetchone()
+
+    if not existing:
+
+        await interaction.followup.send(
+        f"❌ У {user.mention} нет trial ключа",
+        ephemeral=ep()
+        )
+
+        return
+
+    old_key = existing[0]
+
+    cursor.execute(
+    """
+    DELETE FROM trial_keys
+    WHERE discord_id=%s
+    """,
+    (discord_id,)
+    )
+
+    conn.commit()
+
+    await interaction.followup.send(
+    f"✅ Trial сброшен для {user.mention}\nСтарый ключ: `{old_key}`\nТеперь они могут получить новый через кнопку",
+    ephemeral=ep()
     )
 
 
@@ -1223,6 +1439,7 @@ def check():
     if not key:
         return jsonify({"valid":False})
 
+    # --- Сначала проверяем основную таблицу keys ---
     cursor.execute("""
     SELECT
     used,
@@ -1235,45 +1452,77 @@ def check():
 
     data=cursor.fetchone()
 
-    if not data:
+    if data:
+
+        used=data[0]
+        expired=data[1]
+        roblox_id=data[2]
+        blacklisted=data[3]
+
+        if expired=="Yes":
+            return jsonify({"valid":False})
+
+        if blacklisted=="Yes":
+            return jsonify({"valid":False,"reason":"blacklisted"})
+
+        if not used:
+            return jsonify({"valid":False})
+
+        if userid:
+
+            if roblox_id is None:
+
+                cursor.execute("""
+                UPDATE keys
+                SET roblox_id=%s
+                WHERE key=%s
+                """,(userid,key))
+
+                conn.commit()
+
+            elif str(roblox_id)!=str(userid):
+
+                return jsonify({
+                    "valid":False,
+                    "reason":"wrong account"
+                })
+
+        return jsonify({"valid":True})
+
+    # --- Если не найден в keys — проверяем trial_keys ---
+    cursor.execute("""
+    SELECT roblox_id
+    FROM trial_keys
+    WHERE key=%s
+    """,(key,))
+
+    trial=cursor.fetchone()
+
+    if not trial:
         return jsonify({"valid":False})
 
-    used=data[0]
-    expired=data[1]
-    roblox_id=data[2]
-    blacklisted=data[3]
-
-    if expired=="Yes":
-        return jsonify({"valid":False})
-
-    if blacklisted=="Yes":
-        return jsonify({"valid":False,"reason":"blacklisted"})
-
-    if not used:
-        return jsonify({"valid":False})
+    trial_roblox_id=trial[0]
 
     if userid:
 
-        if roblox_id is None:
+        if trial_roblox_id is None:
 
             cursor.execute("""
-            UPDATE keys
+            UPDATE trial_keys
             SET roblox_id=%s
             WHERE key=%s
             """,(userid,key))
 
             conn.commit()
 
-        elif str(roblox_id)!=str(userid):
+        elif str(trial_roblox_id)!=str(userid):
 
             return jsonify({
                 "valid":False,
                 "reason":"wrong account"
             })
 
-    return jsonify({
-        "valid":True
-    })
+    return jsonify({"valid":True})
 
 
 def run_api():

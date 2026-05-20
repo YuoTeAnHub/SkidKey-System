@@ -529,6 +529,7 @@ length:int=24
 
 ):
 
+    await interaction.response.defer(ephemeral=ep())
 
     allowed=[
 
@@ -557,7 +558,7 @@ length:int=24
 
             if unit not in allowed:
 
-                await interaction.response.send_message(
+                await interaction.followup.send(
                 "❌ only seconds/hours/days/months/years",
                 ephemeral=ep()
                 )
@@ -582,7 +583,7 @@ length:int=24
 
         except:
 
-            await interaction.response.send_message(
+            await interaction.followup.send(
             "❌ Example: 30 days",
             ephemeral=ep()
             )
@@ -614,7 +615,7 @@ length:int=24
 
     if exists:
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
         "❌ key exists",
         ephemeral=ep()
         )
@@ -654,7 +655,7 @@ length:int=24
     conn.commit()
 
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
 
     f"✅ Generated:\n{key}",
 
@@ -675,6 +676,7 @@ key:str
 
 ):
 
+    await interaction.response.defer(ephemeral=ep())
 
     cursor.execute(
 
@@ -692,7 +694,7 @@ key:str
     conn.commit()
 
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
     f"Deleted:\n{key}",
     ephemeral=ep()
     )
@@ -707,6 +709,7 @@ async def keyslist(
 interaction:discord.Interaction
 ):
 
+    await interaction.response.defer(ephemeral=ep())
 
     cursor.execute(
     "SELECT key FROM keys LIMIT 20"
@@ -717,7 +720,7 @@ interaction:discord.Interaction
 
     if not rows:
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
         "No keys",
         ephemeral=ep()
         )
@@ -741,7 +744,7 @@ interaction:discord.Interaction
     )
 
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
     embed=embed,
     ephemeral=ep()
     )
@@ -759,6 +762,7 @@ key:str
 
 ):
 
+    await interaction.response.defer(ephemeral=ep())
 
     cursor.execute(
 
@@ -788,7 +792,7 @@ key:str
 
     if not data:
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
         "key not found",
         ephemeral=ep()
         )
@@ -844,7 +848,7 @@ key:str
     )
 
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
     embed=embed,
     ephemeral=ep()
     )
@@ -862,6 +866,7 @@ user:discord.Member
 
 ):
 
+    await interaction.response.defer(ephemeral=ep())
 
     cursor.execute(
 
@@ -937,7 +942,7 @@ user:discord.Member
         )
 
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
     embed=embed
     )
 
@@ -955,6 +960,8 @@ prefix:str=None,
 length:int=24
 
 ):
+
+    await interaction.response.defer(ephemeral=ep())
 
     allowed=[
     "seconds",
@@ -980,7 +987,7 @@ length:int=24
 
             if unit not in allowed:
 
-                await interaction.response.send_message(
+                await interaction.followup.send(
                 "❌ only seconds/hours/days/months/years",
                 ephemeral=ep()
                 )
@@ -1004,7 +1011,7 @@ length:int=24
 
         except:
 
-            await interaction.response.send_message(
+            await interaction.followup.send(
             "❌ Example: 30 days",
             ephemeral=ep()
             )
@@ -1025,7 +1032,7 @@ length:int=24
 
     if cursor.fetchone():
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
         "❌ Key collision, try again",
         ephemeral=ep()
         )
@@ -1080,14 +1087,14 @@ length:int=24
 
         await user.send(embed=embed)
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
         f"✅ Whitelisted {user.mention}\nKey: `{key}`",
         ephemeral=ep()
         )
 
     except discord.Forbidden:
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
         f"✅ Key generated but couldn't DM {user.mention} (DMs closed)\nKey: `{key}`",
         ephemeral=ep()
         )
@@ -1104,6 +1111,8 @@ user:discord.Member
 
 ):
 
+    await interaction.response.defer(ephemeral=ep())
+
     cursor.execute(
     """
     SELECT key FROM keys
@@ -1118,7 +1127,7 @@ user:discord.Member
 
     if not data:
 
-        await interaction.response.send_message(
+        await interaction.followup.send(
         "❌ User has no active key",
         ephemeral=ep()
         )
@@ -1138,7 +1147,7 @@ user:discord.Member
 
     conn.commit()
 
-    await interaction.response.send_message(
+    await interaction.followup.send(
     f"🚫 Blacklisted {user.mention}\nKey: `{key}`",
     ephemeral=ep()
     )
